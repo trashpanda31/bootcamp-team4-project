@@ -1,7 +1,7 @@
 resource "aws_security_group" "bc_team4_web_sg" {
   name        = "BC-Team4-Web-SG"
   description = "Security Group for Bootcamp Team 4 Web Servers"
-  vpc_id = var.vpc_id 
+  vpc_id      = var.vpc_id
 
   ingress {
     description = "Allow HTTP"
@@ -20,7 +20,6 @@ resource "aws_security_group" "bc_team4_web_sg" {
   }
 
   egress {
-    description = "Allow outbound HTTPS"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
@@ -28,15 +27,14 @@ resource "aws_security_group" "bc_team4_web_sg" {
   }
 
   egress {
-    description = "Allow outbound HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
-    Name      = "BC-Team4-Web-SG"
+    Name = "BC-Team4-Web-SG"
   }
 }
 
@@ -51,5 +49,19 @@ resource "aws_security_group" "bc_team4_jenkins_sg" {
     to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-  } 
+  }
+
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
