@@ -41,7 +41,13 @@ resource "aws_security_group" "bc_team4_web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-
+  egress {
+    description = "Allow MySQL to RDS"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   egress {
     from_port   = 53
     to_port     = 53
