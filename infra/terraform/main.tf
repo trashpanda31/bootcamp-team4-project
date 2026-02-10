@@ -32,6 +32,23 @@ resource "aws_instance" "jenkins_team4" {
   }
 }
 
+resource "aws_instance" "jenkins_agent_team4" {
+  ami                 = "ami-027547022824dc6e0"
+  instance_type        = var.instance_type
+  iam_instance_profile = "Bootcamp-Instance-Profile"
+
+  vpc_security_group_ids = [
+    aws_security_group.bc_team4_agent_sg.id
+  ]
+
+  user_data                   = file("userdata_agent.sh")
+  user_data_replace_on_change  = true
+
+  tags = {
+    Name = "CloudSprint-Jenkins-Agent-team4"
+  }
+}
+
 resource "aws_cloudwatch_metric_alarm" "team4_high_cpu" {
   alarm_name          = "CloudSprint-team4-HighCPU"
   comparison_operator = "GreaterThanThreshold"
@@ -43,7 +60,7 @@ resource "aws_cloudwatch_metric_alarm" "team4_high_cpu" {
   threshold           = 70
 
   dimensions = {
-    InstanceId = var.instance_id
+    InstanceId = aws_instance.cloudsprint_team4.id
   }
 
   treat_missing_data = "missing"
