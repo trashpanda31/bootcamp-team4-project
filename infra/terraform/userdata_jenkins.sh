@@ -15,13 +15,9 @@ sudo apt update -y
 sudo apt-get install -y jenkins
 sudo apt install -y  docker.io
 sudo apt install -y docker-compose
+sudo apt install -y ansible
 
 echo 'JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' | sudo tee -a /etc/default/jenkins > /dev/null
-
-sudo python3 -m venv /opt/ansible-venv
-sudo /opt/ansible-venv/bin/pip install --upgrade pip
-sudo /opt/ansible-venv/bin/pip install ansible
-/opt/ansible-venv/bin/ansible --version
 
 sudo chmod -R a+rX /opt/ansible-venv
 
