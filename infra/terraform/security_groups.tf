@@ -19,6 +19,14 @@ resource "aws_security_group" "bc_team4_web_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "Allow MySQL from EC2"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    security_groups = [aws_security_group.bc_team4_web_sg.id]
+  }  
+
   egress {
     from_port   = 443
     to_port     = 443
