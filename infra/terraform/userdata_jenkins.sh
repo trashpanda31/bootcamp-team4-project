@@ -1,43 +1,20 @@
 #!/bin/bash
-set -euxo pipefail
+sudo apt update -y
+sudo apt upgrade -y
 
-exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+sudo apt-get install -y openjdk-17-jre ca-certificates curl gnupg wget
 
-if command -v apt-get >/dev/null 2>&1; then
-  apt-get update -y
-  apt-get install -y fontconfig openjdk-17-jre curl gnupg
+java -version
 
-  curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
-  echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list
+sudo mkdir -p /etc/apt/keyrings
+sudo wget -q -O /etc/apt/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
 
-  apt-get update -y
-  apt-get install -y jenkins
+echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
-  systemctl enable --now jenkins
+sudo apt update -y
+sudo apt-get install -y jenkins
 
-elif command -v dnf >/dev/null 2>&1; then
-  dnf update -y
-  dnf install -y java-17-amazon-corretto wget
+echo 'JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' | sudo tee -a /etc/default/jenkins > /dev/null
 
-  wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
-  rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
-
-  dnf install -y jenkins
-  systemctl enable --now jenkins
-
-elif command -v yum >/dev/null 2>&1; then
-  yum update -y
-  yum install -y java-17-amazon-corretto wget
-
-  wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
-  rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
-
-  yum install -y jenkins
-  systemctl enable --now jenkins
-
-else
-  exit 1
-fi
-
-systemctl --no-pager status jenkins || true
-cat /var/lib/jenkins/secrets/initialAdminPassword || true
+sudo systemctl enable --now jenkins
+sudo systemctl status jenkins --no-pager || true

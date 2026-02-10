@@ -7,7 +7,7 @@ resource "aws_instance" "cloudsprint_team4" {
     aws_security_group.bc_team4_web_sg.id
   ]
 
-  user_data                   = file("${path.module}/userdata_docker.sh")
+  user_data = file("userdata_docker.sh")
   user_data_replace_on_change = true
 
   tags = {
@@ -24,7 +24,7 @@ resource "aws_instance" "jenkins_team4" {
     aws_security_group.bc_team4_jenkins_sg.id
   ]
 
-  user_data                   = file("${path.module}/userdata_jenkins.sh")
+  user_data = file("userdata_jenkins.sh")
   user_data_replace_on_change = true
 
   tags = {
