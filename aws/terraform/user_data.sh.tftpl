@@ -28,16 +28,16 @@ DB_NAME="$(echo "$SECRET_JSON" | jq -r '.dbname')"
 DB_USER="$(echo "$SECRET_JSON" | jq -r '.username')"
 DB_PASS="$(echo "$SECRET_JSON" | jq -r '.password')"
 
-sudo docker pull "${ECR_REPO_URL}:prod"
+sudo docker pull "$${ECR_REPO_URL}:prod"
 
 sudo docker rm -f app || true
 
 sudo docker run -d \
   --name app \
   --restart=always \
-  -p 80:${APP_PORT} \
+  -p 80:$${APP_PORT} \
   -e WORDPRESS_DB_HOST="$DB_HOST" \
   -e WORDPRESS_DB_NAME="$DB_NAME" \
   -e WORDPRESS_DB_USER="$DB_USER" \
   -e WORDPRESS_DB_PASSWORD="$DB_PASS" \
-  "${ECR_REPO_URL}:prod"
+  "$${ECR_REPO_URL}:prod"

@@ -14,8 +14,8 @@ variable "instance_type" {
 }
 
 variable "instance_profile_name" {
-  type        = string
-  default     = "Bootcamp-Instance-Profile"
+  type    = string
+  default = "Bootcamp-Instance-Profile"
 }
 
 variable "ecr_repo_url" {
