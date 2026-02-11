@@ -110,6 +110,7 @@ resource "aws_autoscaling_policy" "cpu_scaling" {
 }
 
 
+
 resource "aws_instance" "jenkins_team4" {
   ami                  = "ami-027547022824dc6e0"
   instance_type         = var.instance_type
@@ -144,19 +145,4 @@ resource "aws_instance" "jenkins_agent_team4" {
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "team4_high_cpu" {
-  alarm_name          = "CloudSprint-team4-HighCPU"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 70
 
-  dimensions = {
-    InstanceId = aws_instance.cloudsprint_team4.id
-  }
-
-  treat_missing_data = "missing"
-}
