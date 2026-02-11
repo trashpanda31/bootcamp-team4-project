@@ -15,6 +15,14 @@ resource "aws_lb_target_group" "team4_tg" {
   vpc_id      = aws_vpc.team4.id
   target_type = "instance"
 
+  deregistration_delay = 30
+
+  stickiness {
+    type            = "lb_cookie"
+    enabled         = true
+    cookie_duration = 3600
+  }
+
   health_check {
     enabled             = true
     path                = var.healthcheck_path

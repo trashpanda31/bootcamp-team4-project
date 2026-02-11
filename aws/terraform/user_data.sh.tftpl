@@ -7,13 +7,13 @@ ECR_REGISTRY="${ecr_registry}"
 SECRET_ARN="${rds_secret_arn}"
 APP_PORT="${app_port}"
 
-sudo apt update -y
+sudo apt-get update -y
 
-sudo apt install -y docker.io
-sudo apt install -y docker-compose
-sudo apt install -y awscli
-sudo apt install -y jq
-sudo apt install -y curl
+sudo apt-get install -y docker.io
+sudo apt-get install -y docker-compose
+sudo apt-get install -y awscli
+sudo apt-get install -y jq
+sudo apt-get install -y curl
 
 sudo systemctl enable docker
 sudo systemctl start docker
