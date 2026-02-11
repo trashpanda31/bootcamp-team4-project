@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+REGION="${aws_region}"
+ECR_REPO_URL="${ecr_repo_url}"
+ECR_REGISTRY="${ecr_registry}"
+SECRET_ARN="${rds_secret_arn}"
+APP_PORT="${app_port}"
+
+sudo apt-get update -y
+
+sudo apt-get install -y docker.io
+sudo apt-get install -y docker-compose
+sudo apt-get install -y awscli
+sudo apt-get install -y jq
+sudo apt-get install -y curl
+
+sudo systemctl enable docker
+sudo systemctl start docker
+
+ECR_PASS="$(aws ecr get-login-password --region "$REGION")"
+sudo docker login -u AWS -p "$ECR_PASS" "$ECR_REGISTRY"
+
+SECRET_JSON="$(aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" --query SecretString --output text --region "$REGION")"
+
+DB_HOST="$(echo "$SECRET_JSON" | jq -r '.host')"
+DB_NAME="$(echo "$SECRET_JSON" | jq -r '.dbname')"
+DB_USER="$(echo "$SECRET_JSON" | jq -r '.username')"
+DB_PASS="$(echo "$SECRET_JSON" | jq -r '.password')"
+
+sudo docker pull "$${ECR_REPO_URL}:prod"
+
+sudo docker rm -f app || true
+
+sudo docker run -d \
+  --name app \
+  --restart=always \
+  -p 80:$${APP_PORT} \
+  -e WORDPRESS_DB_HOST="$DB_HOST" \
+  -e WORDPRESS_DB_NAME="$DB_NAME" \
+  -e WORDPRESS_DB_USER="$DB_USER" \
+  -e WORDPRESS_DB_PASSWORD="$DB_PASS" \
+  "$${ECR_REPO_URL}:prod"
