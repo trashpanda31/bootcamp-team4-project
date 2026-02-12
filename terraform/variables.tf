@@ -33,7 +33,7 @@ variable "app_container_port" {
 
 variable "healthcheck_path" {
   type    = string
-  default = "/"
+  default = "/wp-content/themes/demo-theme/healthz.php"
 }
 
 variable "asg_min" {
