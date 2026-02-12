@@ -15,9 +15,9 @@ defined('ABSPATH') || exit;
 </head>
 <body>
   <div class="box">
-    <h1>Demo Theme работает ✅</h1>
-    <p>Этот файл находится в <code>wp-content/themes/demo-theme/index.php</code> и попал в контейнер через сборку образа.</p>
-    <p>Измени текст, пересобери образ — и тут обновится.</p>
+    <h1>Demo Theme works ✅</h1>
+    <p>This file is in <code>wp-content/themes/demo-theme/index.php</code> so you can start update you Wordpress themes</p>
+    <p>So, update file, push, and it will be also updated here</p>
   </div>
   <?php wp_footer(); ?>
 </body>
