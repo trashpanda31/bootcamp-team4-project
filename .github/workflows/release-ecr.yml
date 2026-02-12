@@ -1,0 +1,64 @@
+name: release-ecr
+
+on:
+  pull_request:
+    branches: ["development"]
+    types: [closed]
+    paths:
+      - "docker/**"
+      - "wp-content/**"
+
+permissions:
+  contents: read
+  id-token: write
+  actions: write
+
+concurrency:
+  group: prod-release
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: aws-actions/configure-aws-credentials@v6.0.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:prod
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - run: |
+          set -euo pipefail
+          aws ecr describe-images --repository-name "${ECR_REPOSITORY}" --image-ids imageTag="${{ github.sha }}" >/dev/null
+          aws ecr describe-images --repository-name "${ECR_REPOSITORY}" --image-ids imageTag="prod" >/dev/null
+
+      - run: |
+          set -euo pipefail
+          curl -sS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/actions/workflows/deploy.yml/dispatches" \
+            -d "{\"ref\":\"development\",\"inputs\":{\"image_sha\":\"${{ github.sha }}\"}}"
