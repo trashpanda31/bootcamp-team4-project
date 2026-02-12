@@ -16,7 +16,7 @@ resource "aws_launch_template" "team4_lt" {
   }
 
   vpc_security_group_ids = [aws_security_group.asg_sg.id]
-  
+
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tftpl", {
     aws_region     = var.aws_region
     ecr_repo_url   = var.ecr_repo_url
@@ -24,7 +24,7 @@ resource "aws_launch_template" "team4_lt" {
     rds_secret_arn = var.rds_secret_arn
     app_port       = var.app_container_port
   }))
-  
+
   update_default_version = true
 
   tag_specifications {
