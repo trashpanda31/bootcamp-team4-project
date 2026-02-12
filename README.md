@@ -55,8 +55,8 @@ This ensures service continuity without manual intervention.
 
 Configured with:
 
-- Minimum: 1 instance
-- Desired: 1 instance
+- Minimum: 2 instance
+- Desired: 2 instance
 - Maximum: 3 instances
 
 The ASG guarantees at least one running instance and allows horizontal scaling up to three instances.
@@ -70,10 +70,12 @@ CloudWatch alarms monitor:
 
 ### Dockerized WordPress
 
-Each EC2 instance runs a Docker container built from:
+The Docker image is based on a fixed WordPress version and includes repository-managed wp-content:
 
 ```dockerfile
-FROM wordpress:latest
+FROM wordpress:6.5.4-php8.2-apache
+COPY ./wp-content /var/www/html/wp-content
+RUN chown -R www-data:www-data /var/www/html/wp-content
 ```
 
 The container is started via a launch template bootstrap script during instance initialization.
@@ -142,18 +144,20 @@ This prevents concurrent state corruption and enables safe team collaboration.
 
 When the Auto Scaling Group launches a new EC2 instance, a user-data script automatically:
 
-- Installs Docker and required dependencies
-- Authenticates to ECR
+- Installs Docker and required dependencies (AWS CLI, jq, curl)
+- Authenticates to Amazon ECR
 - Pulls the prod image
-- Retrieves database credentials from Secrets Manager
-- Starts the WordPress container
+- Retrieves database credentials from AWS Secrets Manager
+- Starts the WordPress container on port 80
+- Mounts a Docker volume for media uploads (wp_uploads:/var/www/html/- - wp-content/uploads)
+
+The uploads volume persists across container restarts on the same instance, but is not shared between multiple instances.
 
 This ensures:
-
 - No manual server configuration
-- Immutable infrastructure pattern
-- Fast instance replacement
 - Consistent runtime environments
+- Automated instance replacement
+- Application-level persistence for media uploads on each instance
 
 ---
 
