@@ -1,0 +1,53 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: prod-release
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v6.0.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - run: |
+          aws ecr describe-images \
+            --repository-name "${ECR_REPOSITORY}" \
+            --image-ids imageTag="${{ inputs.image_sha }}" >/dev/null
+
+      - run: |
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "${{ vars.ASG_NAME }}" \
+            --preferences MinHealthyPercentage=90,InstanceWarmup=120
+
+      - run: |
+          ASG="${{ vars.ASG_NAME }}"
+          for i in {1..120}; do
+            STATUS="$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name "$ASG" --query 'InstanceRefreshes[0].Status' --output text)"
+            echo "$STATUS"
+            case "$STATUS" in
+              Successful) exit 0 ;;
+              Failed|Cancelled) exit 1 ;;
+              *) sleep 15 ;;
+            esac
+          done
+          exit 1

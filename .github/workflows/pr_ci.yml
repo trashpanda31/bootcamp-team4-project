@@ -1,0 +1,54 @@
+name: pr-ci
+
+on:
+  pull_request:
+    branches: ["development"]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "docker/**"
+      - "wp-content/**" 
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: docker/Dockerfile
+
+      - uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: "docker"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: false
+          load: true
+          tags: localtest:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - run: |
+          set -euo pipefail
+          docker run -d --rm --name app -p 8080:80 localtest:${{ github.sha }}
+          for i in {1..30}; do
+            CODE="$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || true)"
+            if [ "$CODE" != "000" ]; then
+              echo "HTTP responds with $CODE"
+              docker stop app
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs app || true
+          docker stop app || true
+          exit 1
