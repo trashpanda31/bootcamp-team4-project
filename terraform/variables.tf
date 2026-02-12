@@ -38,12 +38,12 @@ variable "healthcheck_path" {
 
 variable "asg_min" {
   type    = number
-  default = 1
+  default = 2
 }
 
 variable "asg_desired" {
   type    = number
-  default = 1
+  default = 2
 }
 
 variable "asg_max" {

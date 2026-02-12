@@ -35,7 +35,8 @@ sudo docker rm -f app || true
 sudo docker run -d \
   --name app \
   --restart=always \
-  -p 80:$${APP_PORT} \
+  -p 80:80 \
+  -v wp_uploads:/var/www/html/wp-content/uploads \
   -e WORDPRESS_DB_HOST="$DB_HOST" \
   -e WORDPRESS_DB_NAME="$DB_NAME" \
   -e WORDPRESS_DB_USER="$DB_USER" \
