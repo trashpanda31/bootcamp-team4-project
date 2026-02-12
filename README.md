@@ -2,244 +2,259 @@
 
 ## Project Overview
 
-This project was developed during the DevOps Bootcamp by **Team 4**.
+This project was developed during the DevOps Bootcamp by Team 4.
 
-The goal was to design and implement a **production-style, scalable, and fully automated WordPress platform** using modern DevOps practices and cloud technologies.
+The objective was to design and implement a production-style WordPress platform using modern DevOps practices and AWS cloud services.
 
----
+Instead of deploying a simple website, the focus was placed on building a structured and automated cloud environment that reflects how production systems are provisioned, deployed, and operated.
+
+The platform demonstrates an end-to-end DevOps lifecycle — from infrastructure provisioning and containerization to CI/CD automation and rolling deployments.
 
 ## 🎯 Project Goals
 
-The system is designed to be:
+The system was designed with the following operational goals in mind:
 
-- Automatically scalable during traffic spikes  
-- Fully containerized for consistency  
-- Deployed automatically 
-- Always available (24/7)  
-- Cost-efficient and production-oriented  
+- Run workloads inside containers for consistency
+- Automate infrastructure provisioning using Terraform
+- Eliminate manual deployments via CI/CD
+- Ensure high availability across multiple Availability Zones
+- Maintain controlled and predictable infrastructure capacity
 
----
+To achieve this, the architecture combines Auto Scaling Groups, Docker containers, load balancing, and automated deployment workflows.
+
+When a new instance is launched, it bootstraps itself automatically, pulls the production container image, retrieves secure credentials, and joins the load balancer without manual configuration.
 
 ## 🏗 System Architecture
 
-The platform runs on **AWS multi-AZ high availability architecture**.
+The platform runs on a multi-AZ AWS architecture inside a custom VPC (10.40.0.0/16) in eu-west-1.
 
 ### Traffic Flow
 
+All incoming internet traffic first reaches the Application Load Balancer (ALB) deployed in public subnets.
 
-### Core Components
+The load balancer performs health checks (/, HTTP 200–399) and distributes traffic only to healthy EC2 instances running inside private subnets.
 
-- Application Load Balancer distributes traffic  
-- Auto Scaling Group launches instances automatically  
-- Docker container runs WordPress on every instance  
-- AWS ECR stores container images  
-- AWS Secrets Manager stores DB credentials  
-- Terraform provisions infrastructure  
-- GitHub Actions handles CI/CD & deployment  
+Each EC2 instance runs WordPress inside a Docker container.
+
+If an instance becomes unhealthy:
+
+- It is removed from the load balancer target group
+- The Auto Scaling Group replaces it automatically
+
+This ensures service continuity without manual intervention.
+
+## ⚙️ Core Components
+
+### Application Load Balancer (ALB)
+
+- Public entry point
+- Distributes HTTP traffic
+- Performs continuous health checks
+
+### Auto Scaling Group (ASG)
+
+Configured with:
+
+- Minimum: 1 instance
+- Desired: 1 instance
+- Maximum: 3 instances
+
+The ASG guarantees at least one running instance and allows horizontal scaling up to three instances.
+
+CloudWatch alarms monitor:
+
+- CPU utilization (>70%)
+- Instance status check failures
+
+(Current configuration defines monitoring alarms but does not include explicit scale-in or scale-out policies.)
+
+### Dockerized WordPress
+
+Each EC2 instance runs a Docker container built from:
+
+```dockerfile
+FROM wordpress:latest
+```
+
+The container is started via a launch template bootstrap script during instance initialization.
 
 ---
 
-## ⚙️ Tech Stack
+### Amazon ECR
 
-### Infrastructure
-- AWS (VPC, ALB, ASG, EC2, ECR, CloudWatch, Secrets Manager)  
-- Terraform (Infrastructure as Code)  
-- Docker (Containerized WordPress)  
-- Private Subnets + NAT Gateway  
+Docker images are stored and versioned in Amazon Elastic Container Registry (ECR).
 
-### CI/CD
-- GitHub Actions  
-- Docker Buildx  
-- AWS OIDC authentication  
-- Rolling deployment via ASG Instance Refresh  
+Images are tagged with:
 
-### Application
-- WordPress (Docker)  
-- MySQL / RDS (Secrets Manager credentials)  
+- Commit SHA
+- prod
+
+This ensures traceable and reproducible deployments.
+
+---
+
+### AWS Secrets Manager
+
+Database credentials are:
+
+- Stored securely
+- Retrieved dynamically at runtime
+- Injected into the container as environment variables
+
+No secrets are hard-coded or stored in the repository.
 
 ---
 
 ## ☁️ Infrastructure (Terraform)
 
-Infrastructure is fully defined as code.
+All infrastructure is fully defined as code using Terraform.
 
 ### Networking
-- Custom VPC: `10.40.0.0/16`  
-- Public subnets → Load Balancer  
-- Private subnets → Application instances  
-- NAT Gateway for outbound traffic  
-- Internet Gateway for public access  
 
-### Load Balancing
-- Application Load Balancer (HTTP :80)  
-- Sticky sessions enabled  
-- Health checks enabled  
+- Custom VPC (10.40.0.0/16)
+- 2 Public subnets (ALB + NAT Gateway)
+- 2 Private subnets (EC2 instances)
+- Internet Gateway for ingress
+- NAT Gateway for outbound access
 
-### Auto Scaling
-- Min: **1**  
-- Desired: **1**  
-- Max: **3**  
-- Rolling instance refresh during deployment  
+EC2 instances:
 
-### Monitoring
+- Have no public IP
+- Accept traffic only from the ALB security group
 
-CloudWatch alarms:
-
-- High CPU usage  
-- Instance health failures  
+This isolates compute resources from direct internet exposure.
 
 ---
 
-## 📦 Containerization
+### Terraform Backend
 
-WordPress runs inside Docker on every instance.
+Remote state configuration includes:
 
-### Dockerfile
+- S3 state storage
+- Encryption enabled
+- State locking enabled
 
-Based on:
+This prevents concurrent state corruption and enables safe team collaboration.
 
+---
 
-### Instance Boot Process
+## 📦 Instance Boot Process
 
-1. Install Docker  
-2. Authenticate to AWS ECR  
-3. Pull latest production image  
-4. Retrieve DB credentials from Secrets Manager  
-5. Run container automatically  
+When the Auto Scaling Group launches a new EC2 instance, a user-data script automatically:
 
-### Benefits
+- Installs Docker and required dependencies
+- Authenticates to ECR
+- Pulls the prod image
+- Retrieves database credentials from Secrets Manager
+- Starts the WordPress container
 
-- Identical runtime environment  
-- Immutable infrastructure  
-- Fast recovery & scaling  
+This ensures:
+
+- No manual server configuration
+- Immutable infrastructure pattern
+- Fast instance replacement
+- Consistent runtime environments
 
 ---
 
 ## 🔁 CI/CD Pipeline
 
-Fully automated pipeline using **GitHub Actions**.
+GitHub Actions manages validation, release, and deployment workflows.
 
-### Branch Strategy
+### CI Pipeline (Pull Requests → development)
 
-- `development` → main integration branch  
-- `feature/*` → feature branches  
+Before code is merged:
 
----
+- Dockerfile linting (Hadolint)
+- Shell script linting
+- Docker Buildx image build
+- Local container runtime test
+- HTTP response validation
 
-### 🧪 CI Pipeline (Pull Request → development)
-
-Ensures Docker image quality before merge.
-
-Steps:
-
-- Dockerfile lint (Hadolint)  
-- Shell script lint  
-- Build Docker image  
-- Run container locally  
-- HTTP health check  
-
-If any step fails → PR blocked  
+If validation fails, the Pull Request cannot be merged.
 
 ---
 
-### 📦 Release Pipeline (Merge → development)
+### Release Pipeline
 
-After merge:
+After a Pull Request is merged:
 
-- Build Docker image  
-- Push image to AWS ECR  
-- Tag image:  
-  - `<commit-sha>`  
-  - `prod`  
-- Verify image exists  
-- Trigger deployment workflow  
+- Production image is built
+- Image is pushed to ECR
+- Image is tagged (commit SHA + prod)
+- Deployment workflow is triggered
+
+Authentication uses OIDC federation — GitHub assumes an AWS IAM role without storing static credentials.
 
 ---
 
-### 🚀 Deployment Pipeline
+### Deployment Strategy
 
-Deployment uses **Auto Scaling Instance Refresh**
+Deployments use Auto Scaling Instance Refresh:
 
-Steps:
+- Rolling replacement strategy
+- 90% minimum healthy capacity
+- 120-second warmup
 
-1. Verify image exists  
-2. Start rolling ASG refresh  
-3. Gradually replace instances  
-4. Wait until deployment successful  
+Instances are replaced gradually while maintaining service availability.
 
-**Result:** Zero-downtime deployment  
+No manual SSH or server-level deployment steps are required.
+
+---
+
+## 📊 Monitoring & Reliability
+
+CloudWatch monitors:
+
+- CPU utilization
+- Instance health status
+
+Failure handling:
+
+- Container crash → ALB removes instance → ASG replaces it
+- EC2 failure → ASG launches replacement
+- Deployment → only a portion of instances replaced at a time
+
+Multi-AZ placement improves availability.
 
 ---
 
 ## 🔐 Security
 
-- Instances in private subnets (no public IP)  
-- Only ALB exposed to Internet  
-- Security groups restrict traffic  
-- Secrets stored in AWS Secrets Manager  
-- IAM roles instead of static credentials  
-- OIDC authentication (GitHub → AWS)  
+Security controls include:
 
----
+- Private subnets for compute
+- No public IP on EC2 instances
+- ALB as the only ingress point
+- IAM roles instead of static AWS keys
+- Secrets Manager for sensitive data
+- OIDC authentication for CI/CD
 
-## 📊 High Availability & Reliability
-
-- Multi-AZ architecture  
-- Load balancer health checks  
-- Auto replacement of unhealthy instances  
-- Rolling deployments (no downtime)  
-- CloudWatch monitoring  
-- Designed for **24/7 uptime**  
-
----
-
-## 💸 Cost Optimization
-
-- Auto scaling (pay only when needed)  
-- Instance type: `t3.medium`  
-- Private networking reduces exposure  
-- Single NAT Gateway (balanced cost vs reliability)  
-
----
-
-## 👥 Team Workflow
-
-- Daily sync with mentor  
-- Feature-based development  
-- Pull request reviews  
-- CI enforced quality checks  
-- Terraform-managed infrastructure  
-- Fully automated deployments  
+This minimizes attack surface and credential exposure.
 
 ---
 
 ## 🚀 Deployment Flow
 
-
----
-
-## 📌 DevOps Practices Used
-
-- Infrastructure as Code  
-- Immutable deployments  
-- Containerized workloads  
-- Automated CI/CD  
-- Rolling zero-downtime deployment  
-- Secrets management  
-- Cloud monitoring  
-- Least-privilege IAM  
-- High availability architecture  
+Developer Push  
+→ Pull Request  
+→ CI Validation  
+→ Merge to development  
+→ Image Build & Push to ECR  
+→ Instance Refresh  
+→ Production Updated  
 
 ---
 
 ## 📘 Summary
 
-This project demonstrates a **production-grade DevOps workflow**:
+This project demonstrates a structured DevOps environment featuring:
 
-- Fully automated infrastructure  
-- Containerized & scalable application  
-- Zero-downtime deployments  
-- Secure & monitored environment  
-- Cost-efficient cloud architecture  
+- Infrastructure as Code
+- Containerized workloads
+- Multi-AZ architecture
+- Rolling deployments
+- Secure secret injection
+- Automated CI/CD workflows
 
-The system is designed to **run continuously, scale automatically, and deploy safely without manual intervention**.
+The platform ensures consistent deployments, automated instance replacement, and secure configuration management without manual intervention.
